@@ -1,6 +1,6 @@
 ﻿const express = require("express");
 const cors = require("cors");
-const mysql = require("mysql2/promise");
+// const mysql = require("mysql2/promise");
 const cookieParser = require('cookie-parser')
 const app = express();
 // Render会自动分配端口，本地开发仍用8889
@@ -17,41 +17,71 @@ app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser())
 
 
-// ==================== MySQL 企业级连接池配置 ====================
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || "localhost",
-  user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "root",
-  database: process.env.DB_NAME || "shop_admin",
-  waitForConnections: true,
-  connectionLimit: 20, // 企业级连接数
-  queueLimit: 0,
-  charset: "utf8mb4",
+// 加载 .env 环境变量
+require('dotenv').config();
+// 引入 PostgreSQL 连接池
+const { Pool } = require('pg');
+
+// 【强烈推荐】兼容你原来的 MySQL ? 占位符
+// 如果你业务代码里用的是 WHERE id = ? 这种写法，加了这段就不用改成 $1，直接能用
+Pool.prototype.query = function (query, values) {
+  if (values && Array.isArray(values)) {
+    let idx = 1;
+    query = query.replace(/\?/g, () => `$${idx++}`);
+  }
+  return this._query(query, values);
+};
+
+// ==================== 对应 shop_admin 模式（商品相关表） ====================
+const pool = new Pool({
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT || 5432,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME || "postgres",
+  // Supabase 远程连接必须开启 SSL
+  ssl: { rejectUnauthorized: false },
+  max: 20, // pg 用 max 控制最大连接数，删掉 mysql 的 connectionLimit
+  // 关键：指定默认查找 shop_admin 模式，等价于原来的 shop_admin 数据库
+  options: '-c search_path=shop_admin'
 });
 
-const emppool = mysql.createPool({
-  host: process.env.DB_HOST || "localhost",
-  user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "root",
-  database: process.env.EMP_DB_NAME || "emp_db",
-  waitForConnections: true,
-  connectionLimit: 20, // 企业级连接数
-  queueLimit: 0,
-  charset: "utf8mb4",
+// ==================== 对应 emp_db 模式（员工/角色表） ====================
+const emppool = new Pool({
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT || 5432,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME || "postgres",
+  ssl: { rejectUnauthorized: false },
+  max: 20,
+  // 关键：指定默认查找 emp_db 模式，等价于原来的 emp_db 数据库
+  options: '-c search_path=emp_db'
 });
 
-// 测试数据库连接
-pool
-  .getConnection()
+// ========== 启动时自动测试数据库连接（保留你原有逻辑） ==========
+pool.connect()
   .then((conn) => {
-    console.log("✅ MySQL数据库连接成功");
+    console.log("✅ PostgreSQL(shop_admin/商品库) 连接成功");
     conn.release();
   })
   .catch((err) => {
-    console.error("❌ MySQL连接失败，请检查账号密码：", err.message);
+    console.error("❌ 商品库连接失败：", err.message);
     process.exit(1);
   });
 
+emppool.connect()
+  .then((conn) => {
+    console.log("✅ PostgreSQL(emp_db/员工库) 连接成功");
+    conn.release();
+  })
+  .catch((err) => {
+    console.error("❌ 员工库连接失败：", err.message);
+    process.exit(1);
+  });
+
+// 导出和原来保持一致，上层业务代码无需改引入
+module.exports = { pool, emppool };
 
   // 模拟数据库
 const user = {
