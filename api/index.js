@@ -2,8 +2,6 @@
 const cors = require("cors");
 const cookieParser = require('cookie-parser')
 const app = express();
-// Render自动分配端口，本地默认8889
-const port = process.env.PORT || 8889;
 
 // 中间件 - 中文乱码处理
 app.use((req, res, next) => {
@@ -44,7 +42,7 @@ const emppool = new Pool({
   options: '-c search_path=emp_db'
 });
 
-// 数据库连接检测
+// 数据库连接检测（移除了 process.exit，适配Vercel）
 pool.connect()
   .then((conn) => {
     console.log("✅ PostgreSQL(shop_admin/商品库) 连接成功");
@@ -52,7 +50,6 @@ pool.connect()
   })
   .catch((err) => {
     console.error("❌ 商品库连接失败：", err.message);
-    process.exit(1);
   });
 
 emppool.connect()
@@ -62,8 +59,8 @@ emppool.connect()
   })
   .catch((err) => {
     console.error("❌ 员工库连接失败：", err.message);
-    process.exit(1);
   });
+
 
 // 模拟登录用户
 const user = {
@@ -651,13 +648,13 @@ app.post("/admin/acl/role/batchRemove", async (req, res) => {
   }
 })
 
-// 启动服务（适配Render：0.0.0.0 + 动态端口）
-app.listen(port, '0.0.0.0', async () => {
-  console.log(`\n✅ 企业级后端服务已启动：http://0.0.0.0:${port}`);
-  console.log("📌 测试地址：");
-  console.log("   品牌列表：http://localhost:8889/admin/product/baseTrademark/1/10");
-  console.log("   一级分类：http://localhost:8889/admin/product/category/list/tree");
-  console.log("   手机分类属性：http://localhost:8889/admin/product/attr/list/1011");
-  console.log("   员工列表：http://localhost:8889/admin/acl/user/1/5");
-  console.log("   角色列表：http://localhost:8889/admin/acl/role/1/5");
-});
+// Vercel 运行时会自动注入 VERCEL 全局环境变量,非 Vercel 环境（本地开发）才启动端口监听
+if (!process.env.VERCEL) {
+  const port = process.env.PORT || 8889;
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`✅ 本地后端服务已启动：http://localhost:${port}`);
+  });
+}
+
+// Vercel 环境导出应用实例
+module.exports = app;
