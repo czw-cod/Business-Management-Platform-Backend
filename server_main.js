@@ -14,6 +14,9 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser())
 
+app.get('/healthz', (req, res) => {
+  res.sendStatus(200);
+});
 // ========== 环境变量 + pg 驱动 ==========
 
 const { Pool } = require('pg');
