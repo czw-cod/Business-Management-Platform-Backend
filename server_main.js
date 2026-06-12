@@ -1,4 +1,4 @@
-const express = require("express");
+﻿const express = require("express");
 const cors = require("cors");
 const cookieParser = require('cookie-parser')
 const app = express();
@@ -15,7 +15,7 @@ app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser())
 
 // ========== 环境变量 + pg 驱动 ==========
-require('dotenv').config({ path: './.env' });
+
 const { Pool } = require('pg');
 
 // ========== 双连接池：shop_admin / emp_db 模式 ==========
