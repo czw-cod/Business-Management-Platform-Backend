@@ -2,7 +2,7 @@
 const cors = require("cors");
 const cookieParser = require('cookie-parser')
 const app = express();
-
+const port = process.env.PORT || 8889;
 // 中间件 - 中文乱码处理
 app.use((req, res, next) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -16,7 +16,7 @@ app.get('/healthz', (req, res) => {
   res.sendStatus(200);
 });
 // ========== 环境变量 + pg 驱动 ==========
-
+require('dotenv').config();
 const { Pool } = require('pg');
 
 // ========== 双连接池：shop_admin / emp_db 模式 ==========
@@ -648,13 +648,10 @@ app.post("/admin/acl/role/batchRemove", async (req, res) => {
   }
 })
 
-// Vercel 运行时会自动注入 VERCEL 全局环境变量,非 Vercel 环境（本地开发）才启动端口监听
-if (!process.env.VERCEL) {
-  const port = process.env.PORT || 8889;
+
+
   app.listen(port, '0.0.0.0', () => {
     console.log(`✅ 本地后端服务已启动：http://localhost:${port}`);
   });
-}
 
-// Vercel 环境导出应用实例
-module.exports = app;
+
