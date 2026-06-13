@@ -7,7 +7,25 @@ app.use((req, res, next) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   next();
 });
-app.use(cors({ origin: true, credentials: true }));
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  // 放行所有来源
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  // 允许携带 Cookie、认证头
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  // 允许的请求方法
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  // 允许的请求头
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,token,Cookie');
+
+  // 预检 OPTIONS 请求直接返回 200
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser())
 
