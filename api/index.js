@@ -1,8 +1,7 @@
-﻿const express = require("express");
+const express = require("express");
 const cors = require("cors");
 const cookieParser = require('cookie-parser')
 const app = express();
-const port = process.env.PORT || 8889;
 // 中间件 - 中文乱码处理
 app.use((req, res, next) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -72,34 +71,38 @@ const user = {
 
 // ====================== 登录接口（无SQL，无需修改） ======================
 app.post('/user/login', (req, res) => {
-  const token = req.headers.token
-  if (token && token === user.token) {
-    const clientSessionId = req.cookies.SESSION_ID
-    if (!clientSessionId || clientSessionId !== user.sessionId) {
-      return res.json({ code: 401, message: '会话异常，请重新登录' })
+  try {
+    const token = req.headers.token
+    if (token && token === user.token) {
+      const clientSessionId = req.cookies.SESSION_ID
+      if (!clientSessionId || clientSessionId !== user.sessionId) {
+        return res.json({ code: 401, message: '会话异常，请重新登录' })
+      }
+      return res.json({
+        code: 200,
+        message: 'token有效，自动登录成功',
+        data: { token: user.token, username: user.username }
+      })
     }
-    return res.json({
-      code: 200,
-      message: 'token有效，自动登录成功',
-      data: { token: user.token, username: user.username }
-    })
-  }
 
-  const { username, password } = req.body
-  if (username === user.username && password === user.password) {
-    const newSessionId = 'sess-' + Date.now() + '-' + Math.random().toString(36).slice(2)
-    user.sessionId = newSessionId
-    res.cookie('SESSION_ID', newSessionId, {
-      httpOnly: true,
-      maxAge: 2 * 60 * 60 * 1000
-    })
-    return res.json({
-      code: 200,
-      message: '登录成功',
-      data: { token: user.token, username: user.username }
-    })
-  } else {
-    return res.json({ code: 500, message: '账号或密码错误', data: null })
+    const { username, password } = req.body
+    if (username === user.username && password === user.password) {
+      const newSessionId = 'sess-' + Date.now() + '-' + Math.random().toString(36).slice(2)
+      user.sessionId = newSessionId
+      res.cookie('SESSION_ID', newSessionId, {
+        httpOnly: true,
+        maxAge: 2 * 60 * 60 * 1000
+      })
+      return res.json({
+        code: 200,
+        message: '登录成功',
+        data: { token: user.token, username: user.username }
+      })
+    } else {
+      return res.json({ code: 500, message: '账号或密码错误', data: null })
+    }
+  } catch (error) {
+    res.json({ code: 500, message: '服务器异常！' })
   }
 })
 
@@ -648,10 +651,14 @@ app.post("/admin/acl/role/batchRemove", async (req, res) => {
   }
 })
 
+// Vercel 运行时会自动注入 VERCEL 全局环境变量,非 Vercel 环境（本地开发）才启动端口监听
+if (!process.env.VERCEL) {
+  const port = process.env.PORT || 8889;
 
-
-  app.listen(port, '0.0.0.0', () => {
+  app.listen(port,'0.0.0.0',() => {
     console.log(`✅ 本地后端服务已启动：http://localhost:${port}`);
   });
+}
 
-
+// Vercel 环境导出应用实例
+module.exports = app;
